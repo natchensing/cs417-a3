@@ -16,7 +16,7 @@ class Response:
         if self.version != 'RTSP/1.0':
             raise Exception('Invalid response version. Expected RTSP/1.0')
         self.response_code = int(first_line[1])
-        
+
         while True:
             line = reader.readline().strip()
             if not line or ':' not in line: break
@@ -26,10 +26,10 @@ class Response:
                 self.cseq = int(hdr_value)
             elif hdr_name.lower() == 'session':
                 self.session_id = int(hdr_value)
-        
+
         if self.response_code != 200:
             raise RTSPException(self)
-    
+
 class Connection:
     BUFFER_LENGTH = 0x10000
 
@@ -38,9 +38,17 @@ class Connection:
 	sent at this point, and no stream is set up.
         '''
         self.session = session
-
         # TODO
-        
+        self.serverAddr = address[0]
+        self.serverPort = int(address[1])
+
+        self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.rtspSocket.connect((self.serverAddr, self.serverPort))
+        except:
+            print('Connection to port \'%s\' failed.' %self.serverPort)
+
+        print("[SUCCESS] Connection established.")
 
     def send_request(self, command, include_session=True, extra_headers=None):
         '''Helper function that generates an RTSP request and sends it to the
@@ -57,7 +65,7 @@ class Connection:
 	the resulting data. In case of timeout no exception should be
 	thrown.
         '''
-        
+
         # TODO
 
     def stop_rtp_timer(self):
@@ -118,4 +126,3 @@ class Connection:
         '''
 
         # TODO
-        
