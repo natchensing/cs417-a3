@@ -32,6 +32,15 @@ class Response:
 
 class Connection:
     BUFFER_LENGTH = 0x10000
+    # STATES
+    INIT = 0
+    READY = 1
+    PLAYING = 2
+    # COMMANDS
+    SETUP = 0
+    PLAY = 1
+    PAUSE = 2
+    TEARDOWN = 3
 
     def __init__(self, session, address):
         '''Establishes a new connection with an RTSP server. No message is
@@ -39,14 +48,19 @@ class Connection:
         '''
         self.session = session
         # TODO
-        self.serverAddr = address[0]
-        self.serverPort = int(address[1])
-
-        self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.state = self.INIT
+        self.fileName = None
+        self.seqNum = 0
+        self.sessionNum = 0
+        self.address = address[0]
+        self.portNum = int(address[1])
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # CONNECT TO SERVER
         try:
-            self.rtspSocket.connect((self.serverAddr, self.serverPort))
+            self.socket.connect((self.address, self.portNum))
         except:
-            print('Connection to port \'%s\' failed.' %self.serverPort)
+            print('Connection to port \'%s\' failed.' %self.portNum)
+            return
 
         print("[SUCCESS] Connection established.")
 
@@ -55,6 +69,23 @@ class Connection:
         RTSP connection.
         '''
         # TODO
+
+        if command == self.SETUP:
+            # request = "SETUP " +
+            pass
+        elif command == self.PLAY:
+            pass
+        elif command == self.PAUSE:
+            pass
+        elif command == self.TEARDOWN:
+            pass
+        else:
+            print('Invalid command %s' %command)
+            return
+
+        self.socket.send(request)
+        print("Request sent: %s" %request)
+        self.seqNum += 1
 
     def start_rtp_timer(self):
         '''Starts a thread that reads RTP packets repeatedly and process the
@@ -87,6 +118,7 @@ class Connection:
         '''
 
         # TODO
+        # print("setup triggered")
 
     def play(self):
         '''Sends a PLAY request to the server. This method is responsible for
