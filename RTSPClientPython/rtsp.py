@@ -1,4 +1,5 @@
 import io, socket
+import random
 from threading import Thread
 import _thread
 
@@ -71,7 +72,7 @@ class Connection:
         # TODO
 
         if command == self.SETUP:
-            # request = "SETUP " +
+            # request = "SETUP " + self.data_port
             pass
         elif command == self.PLAY:
             pass
@@ -119,6 +120,17 @@ class Connection:
 
         # TODO
         # print("setup triggered")
+
+        # Create RTP datagram socket
+        if self.data_sock is None:
+            self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.data_port = random.randint(0, 65353)
+            self.data_sock.bind(self.address, self.data_port)
+            # self.data_sock.connect(self.address, self.data_port)
+
+        self.send_request(self.SETUP)
+        # Get and process reply
+        reply = self.socket.recv(self.BUFFER_LENGTH)
 
     def play(self):
         '''Sends a PLAY request to the server. This method is responsible for
