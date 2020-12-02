@@ -1,5 +1,6 @@
 import io, socket
 import random
+import re
 from threading import Thread
 import _thread
 
@@ -42,6 +43,7 @@ class Connection:
     PLAY = 1
     PAUSE = 2
     TEARDOWN = 3
+    SESSION_PATTERN = r"Session: (\d+)"
 
     def __init__(self, session, address):
         '''Establishes a new connection with an RTSP server. No message is
@@ -72,7 +74,7 @@ class Connection:
         # TODO
 
         if command == self.SETUP:
-            # request = "SETUP " + self.data_port
+            request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Transport: RTP/UDP; client_port= " + self.data_port + "\r\n"
             pass
         elif command == self.PLAY:
             pass
@@ -130,7 +132,10 @@ class Connection:
 
         self.send_request(self.SETUP)
         # Get and process reply
-        reply = self.socket.recv(self.BUFFER_LENGTH)
+        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        session_match = re.match(self.SESSION_PATTERN, reply)
+        if session_match:
+            self.sessionNum = session_match(0)
 
     def play(self):
         '''Sends a PLAY request to the server. This method is responsible for
