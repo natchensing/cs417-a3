@@ -44,6 +44,7 @@ class Connection:
     PAUSE = 2
     TEARDOWN = 3
     SESSION_PATTERN = r"Session: (\d+)"
+    RTSP_PATTERN = r"RTSP/1.0 (\d+) ([a-zA-Z]+)"
 
     def __init__(self, session, address):
         '''Establishes a new connection with an RTSP server. No message is
@@ -77,10 +78,13 @@ class Connection:
             request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Transport: RTP/UDP; client_port= " + self.data_port + "\r\n"
             pass
         elif command == self.PLAY:
+            request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
             pass
         elif command == self.PAUSE:
+            request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
             pass
         elif command == self.TEARDOWN:
+            request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
             pass
         else:
             print('Invalid command %s' %command)
@@ -133,9 +137,13 @@ class Connection:
         self.send_request(self.SETUP)
         # Get and process reply
         reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        if not self.check_rtsp_head(reply):
+            print("transmission failed")
+            print(reply)
+            return
         session_match = re.match(self.SESSION_PATTERN, reply)
         if session_match:
-            self.sessionNum = session_match(0)
+            self.sessionNum = session_match.group(1) 
 
     def play(self):
         '''Sends a PLAY request to the server. This method is responsible for
@@ -145,6 +153,18 @@ class Connection:
         '''
 
         # TODO
+        self.send_request(self.PLAY)
+        # Get and process reply
+        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        if not self.check_rtsp_head(reply):
+            print("transmission failed")
+            print(reply)
+            return
+        session_match = re.match(self.SESSION_PATTERN, reply)
+        if session_match:
+            sessionNum = session_match(1)
+            if sessionNum == self.sessionNum:
+                self.start_rtp_timer()
 
     def pause(self):
         '''Sends a PAUSE request to the server. This method is responsible for
@@ -154,6 +174,18 @@ class Connection:
         '''
 
         # TODO
+        self.send_request(self.PAUSE)
+        # Get and process reply
+        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        if not self.check_rtsp_head(reply):
+            print("transmission failed")
+            print(reply)
+            return
+        session_match = re.match(self.SESSION_PATTERN, reply)
+        if session_match:
+            sessionNum = session_match(1)
+            if sessionNum == self.sessionNum:
+                self.stop_rtp_timer()
 
     def teardown(self):
         '''Sends a TEARDOWN request to the server. This method is responsible
@@ -175,3 +207,13 @@ class Connection:
         '''
 
         # TODO
+
+    def check_rtsp_head(self, reply):
+        '''Helper function to check if the rtsp header indicates successful transmisson'''
+        resp_match = re.match(self.RTSP_PATTERN, reply)
+        if not resp_match:
+            return False
+        if resp_match.group(1) and resp_match.group(2):
+            return resp_match.group(1) == "200" and resp_match.group(2) == "OK"
+        return False
+
