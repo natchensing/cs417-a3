@@ -126,6 +126,9 @@ class Connection:
 
         # TODO
         # print("setup triggered")
+        if self.state != self.INIT:
+            print("incorrect state")
+            return
         self.fileName = filename
         # Create RTP datagram socket
         if self.data_sock is None:
@@ -158,6 +161,9 @@ class Connection:
         '''
 
         # TODO
+        if self.state != self.READY:
+            print("incorrect state")
+            return
         self.send_request(self.PLAY)
         # Get and process reply
         buf = self.socket.recv(self.BUFFER_LENGTH)
@@ -184,6 +190,9 @@ class Connection:
         '''
 
         # TODO
+        if self.state != self.PLAYING:
+            print("incorrect state")
+            return
         self.send_request(self.PAUSE)
         # Get and process reply
         buf = self.socket.recv(self.BUFFER_LENGTH)
@@ -214,6 +223,9 @@ class Connection:
         '''
 
         # TODO
+        if self.state == self.INIT:
+            print("incorrect state")
+            return
         self.send_request(self.TEARDOWN)
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
