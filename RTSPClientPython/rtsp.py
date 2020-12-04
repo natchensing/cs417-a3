@@ -59,6 +59,7 @@ class Connection:
         self.address = address[0]
         self.portNum = int(address[1])
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.data_sock = None
         # CONNECT TO SERVER
         try:
             self.socket.connect((self.address, self.portNum))
@@ -73,18 +74,20 @@ class Connection:
         RTSP connection.
         '''
         # TODO
-
+        print(self.fileName)
+        print(self.seqNum)
+        print(self.data_port)
         if command == self.SETUP:
-            request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Transport: RTP/UDP; client_port= " + self.data_port + "\r\n"
+            request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Transport: RTP/UDP; client_port= " + str(self.data_port) + "\r\n"
             pass
         elif command == self.PLAY:
-            request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
+            request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
             pass
         elif command == self.PAUSE:
-            request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
+            request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
             pass
         elif command == self.TEARDOWN:
-            request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + self.seqNum + "\r\n" + "Session: " + self.sessionNum + "\r\n"
+            request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
             pass
         else:
             print('Invalid command %s' %command)
@@ -131,12 +134,16 @@ class Connection:
         if self.data_sock is None:
             self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.data_port = random.randint(0, 65353)
-            self.data_sock.bind(self.address, self.data_port)
+            self.data_sock.bind((self.address, self.data_port))
             # self.data_sock.connect(self.address, self.data_port)
-
+        print("before send")
         self.send_request(self.SETUP)
         # Get and process reply
-        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        buf = self.socket.recv(self.BUFFER_LENGTH)
+        if not buf:
+            print("nothing received")
+            return
+        reply = buf.decode("utf-8")
         if not self.check_rtsp_head(reply):
             print("transmission failed")
             print(reply)
@@ -155,7 +162,11 @@ class Connection:
         # TODO
         self.send_request(self.PLAY)
         # Get and process reply
-        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        buf = self.socket.recv(self.BUFFER_LENGTH)
+        if not buf:
+            print("nothing received")
+            return
+        reply = buf.decode("utf-8")
         if not self.check_rtsp_head(reply):
             print("transmission failed")
             print(reply)
@@ -176,7 +187,11 @@ class Connection:
         # TODO
         self.send_request(self.PAUSE)
         # Get and process reply
-        reply = self.socket.recv(self.BUFFER_LENGTH).decode("utf-8")
+        buf = self.socket.recv(self.BUFFER_LENGTH)
+        if not buf:
+            print("nothing received")
+            return
+        reply = buf.decode("utf-8")
         if not self.check_rtsp_head(reply):
             print("transmission failed")
             print(reply)
