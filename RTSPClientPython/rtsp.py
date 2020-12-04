@@ -75,16 +75,16 @@ class Connection:
         '''
         # TODO
         self.seqNum += 1
-        if command == self.SETUP:
+        if command == self.SETUP and self.state == self.INIT:
             request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Transport: RTP/UDP; client_port= " + str(self.data_port) + "\r\n\r\n"
             pass
-        elif command == self.PLAY:
+        elif command == self.PLAY and self.state == self.READY:
             request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
-        elif command == self.PAUSE:
+        elif command == self.PAUSE and self.state == self.PLAYING:
             request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
-        elif command == self.TEARDOWN:
+        elif command == self.TEARDOWN and self.state != self.INIT:
             request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
         else:
@@ -133,7 +133,7 @@ class Connection:
             self.data_port = random.randint(0, 65353)
             self.data_sock.bind((self.address, self.data_port))
             # self.data_sock.connect(self.address, self.data_port)
-        print("before send")
+        # print("before send")
         self.send_request(self.SETUP)
         # Get and process reply
         buf = self.socket.recv(self.BUFFER_LENGTH)
@@ -147,7 +147,8 @@ class Connection:
             return
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
-            self.sessionNum = session_match.group(1) 
+            self.sessionNum = session_match.group(1)
+        self.state = self.READY
 
     def play(self):
         '''Sends a PLAY request to the server. This method is responsible for
@@ -173,6 +174,7 @@ class Connection:
             sessionNum = session_match(1)
             if sessionNum == self.sessionNum:
                 self.start_rtp_timer()
+        self.state = self.PLAYING
 
     def pause(self):
         '''Sends a PAUSE request to the server. This method is responsible for
@@ -198,6 +200,7 @@ class Connection:
             sessionNum = session_match(1)
             if sessionNum == self.sessionNum:
                 self.stop_rtp_timer()
+        self.state = self.READY
 
     def teardown(self):
         '''Sends a TEARDOWN request to the server. This method is responsible
@@ -211,6 +214,24 @@ class Connection:
         '''
 
         # TODO
+        self.send_request(self.TEARDOWN)
+
+        buf = self.socket.recv(self.BUFFER_LENGTH)
+
+        if not buf:
+            print("nothing received")
+            return
+        reply = buf.decode("utf-8")
+        if not self.check_rtsp_head(reply):
+            print("transmission failed")
+            print(reply)
+            return
+        session_match = re.match(self.SESSION_PATTERN, reply)
+        if session_match:
+            sessionNum = session_match(1)
+            if sessionNum == self.sessionNum:
+                self.stop_rtp_timer()
+        self.state = self.INIT
 
     def close(self):
         '''Closes the connection with the RTSP server. This method should also
@@ -219,6 +240,8 @@ class Connection:
         '''
 
         # TODO
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.close()
 
     def check_rtsp_head(self, reply):
         '''Helper function to check if the rtsp header indicates successful transmisson'''
@@ -228,4 +251,3 @@ class Connection:
         if resp_match.group(1) and resp_match.group(2):
             return resp_match.group(1) == "200" and resp_match.group(2) == "OK"
         return False
-
