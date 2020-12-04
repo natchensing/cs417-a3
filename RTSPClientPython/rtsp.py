@@ -43,7 +43,7 @@ class Connection:
     PLAY = 1
     PAUSE = 2
     TEARDOWN = 3
-    SESSION_PATTERN = r"Session: (\d+)"
+    SESSION_PATTERN = r".*Session: (\d+)"
     RTSP_PATTERN = r"RTSP/1.0 (\d+) ([a-zA-Z]+)"
 
     def __init__(self, session, address):
@@ -74,28 +74,25 @@ class Connection:
         RTSP connection.
         '''
         # TODO
-        print(self.fileName)
-        print(self.seqNum)
-        print(self.data_port)
+        self.seqNum += 1
         if command == self.SETUP:
-            request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Transport: RTP/UDP; client_port= " + str(self.data_port) + "\r\n"
+            request = "SETUP " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Transport: RTP/UDP; client_port= " + str(self.data_port) + "\r\n\r\n"
             pass
         elif command == self.PLAY:
-            request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
+            request = "PLAY " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
         elif command == self.PAUSE:
-            request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
+            request = "PAUSE " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
         elif command == self.TEARDOWN:
-            request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n"
+            request = "TEARDOWN " + self.fileName + " RTSP/1.0\r\n" + "CSeq: " + str(self.seqNum) + "\r\n" + "Session: " + str(self.sessionNum) + "\r\n\r\n"
             pass
         else:
             print('Invalid command %s' %command)
             return
-
-        self.socket.send(request)
+        req = bytes(request, 'utf-8')
+        self.socket.send(req)
         print("Request sent: %s" %request)
-        self.seqNum += 1
 
     def start_rtp_timer(self):
         '''Starts a thread that reads RTP packets repeatedly and process the
@@ -114,7 +111,7 @@ class Connection:
 
         # TODO
 
-    def setup(self):
+    def setup(self, filename):
         '''Sends a SETUP request to the server. This method is responsible for
 	sending the SETUP request, receiving the response and
 	retrieving the session identification to be used in future
@@ -129,7 +126,7 @@ class Connection:
 
         # TODO
         # print("setup triggered")
-
+        self.fileName = filename
         # Create RTP datagram socket
         if self.data_sock is None:
             self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -148,7 +145,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
-        session_match = re.match(self.SESSION_PATTERN, reply)
+        session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             self.sessionNum = session_match.group(1) 
 

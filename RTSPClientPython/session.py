@@ -62,7 +62,7 @@ class Session:
         '''Opens a new video file in the interface.'''
         try:
             self.video_name = video_name
-            self.connection.setup()
+            self.connection.setup(self.video_name)
             for l in self.listeners:
                 l.video_name_changed(video_name)
         except Exception as exception:
