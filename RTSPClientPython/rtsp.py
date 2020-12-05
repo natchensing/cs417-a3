@@ -175,7 +175,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
-        session_match = re.match(self.SESSION_PATTERN, reply)
+        session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             sessionNum = session_match(1)
             if sessionNum == self.sessionNum:
@@ -204,7 +204,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
-        session_match = re.match(self.SESSION_PATTERN, reply)
+        session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             sessionNum = session_match(1)
             if sessionNum == self.sessionNum:
@@ -238,7 +238,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
-        session_match = re.match(self.SESSION_PATTERN, reply)
+        session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             sessionNum = session_match(1)
             if sessionNum == self.sessionNum:
