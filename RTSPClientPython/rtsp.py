@@ -127,7 +127,7 @@ class Connection:
         # TODO
         # self.t.join()
         self.playEvent.set()
-        print("ACTIVE THREADS: " + str(threading.active_count()))
+        # print("ACTIVE THREADS: " + str(threading.active_count()))
 
     def setup(self, filename):
         '''Sends a SETUP request to the server. This method is responsible for
@@ -249,13 +249,13 @@ class Connection:
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
         self.playEvent.set()
-        print("PACKETS RECEIVED: " + str(self.numData))
+        # print("PACKETS RECEIVED: " + str(self.numData))
         # print("TIME STAMPS: " + str(self.timeStamps))
-        print("SEQUENCE LIST: " + str(self.seqList[-1]))
-        print("FRAME RATE: " + str(self.calculate_frame_rate()))
-        print("LOSS RATE: " + str(self.calculate_loss_rate()))
-        print("OUT OF ORDER RATE: " + str(self.calculate_out_of_order_rate()))
-        print("OUT OF ORDER PACKETS: " + str(self.numOutOrder))
+        # print("SEQUENCE LIST: " + str(self.seqList[-1]))
+        # print("FRAME RATE: " + str(self.calculate_frame_rate()))
+        # print("LOSS RATE: " + str(self.calculate_loss_rate()))
+        # print("OUT OF ORDER RATE: " + str(self.calculate_out_of_order_rate()))
+        # print("OUT OF ORDER PACKETS: " + str(self.numOutOrder))
         if not buf:
             print("nothing received")
             return
