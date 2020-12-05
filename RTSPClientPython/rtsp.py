@@ -166,7 +166,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
-        # check if we are in the correct session 
+        # check if we are in the correct session
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             self.sessionNum = session_match.group(1)
@@ -288,6 +288,9 @@ class Connection:
         '''
 
         # TODO
+        # if self.t != None:
+        #     print("thread still running")
+        self.data_sock.close()
         self.socket.close()
 
     def check_rtsp_head(self, reply):
