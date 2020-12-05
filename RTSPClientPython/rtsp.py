@@ -288,9 +288,12 @@ class Connection:
         '''
 
         # TODO
-        # if self.t != None:
-        #     print("thread still running")
-        self.data_sock.close()
+        if self.t != None:
+            print("thread still running")
+            self.stop_rtp_timer()
+        print("ACTIVE THREADS: " + str(threading.active_count()))
+        if self.data_sock != None:
+            self.data_sock.close()
         self.socket.close()
 
     def check_rtsp_head(self, reply):
