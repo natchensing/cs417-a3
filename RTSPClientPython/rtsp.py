@@ -3,7 +3,7 @@ import random
 import re
 from threading import Thread, Event
 import threading
-from time import sleep
+import time
 import _thread
 
 class RTSPException(Exception):
@@ -70,6 +70,7 @@ class Connection:
         self.numData = 0
         self.lastData = 0
         self.numOutOrder = 0
+        self.lastTime = 0
         # CONNECT TO SERVER
         try:
             self.socket.connect((self.address, self.portNum))
@@ -293,7 +294,7 @@ class Connection:
         self.data_sock.settimeout(self.RTP_SOFT_TIMEOUT / 1000.)
         while True:
             if self.state != self.PLAYING:
-                sleep(self.RTP_SOFT_TIMEOUT/1000.)  # diminish cpu hogging
+                time.sleep(self.RTP_SOFT_TIMEOUT/1000.)  # diminish cpu hogging
                 continue
             try:
                 packet = self.recv_rtp_packet()
@@ -303,17 +304,29 @@ class Connection:
                 payloadType = (packet[1] << 1) >> 1
                 #print(payloadType)
                 seqNum = packet[2] * 256 + packet[3]
-                if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1):
-                    self.numOutOrder += 1
                 timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
                 #print(seqNum)
                 #print(timeStamp)
-                self.timeStamps[seqNum] = timeStamp
                 self.dataBuffer[seqNum] = packet[12:]
+                frame= packet[12:]
+                wait = 0
+                if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1):
+                    self.numOutOrder += 1
+                    if seqNum in self.timeStamps:
+                        continue
+                    if (self.seqList[-1] + 1) in self.timeStamps:
+                        frame = self.dataBuffer[self.seqList[-1] + 1]
+                    else:
+                        timeDiff = time.time() - self.lastTime
+                        wait = timeDiff * 0.002 * abs(timeStamp - self.timeStamps[self.seqList[-1]])
                 self.seqList.append(seqNum)
+                self.timeStamps[seqNum] = timeStamp
                 if seqNum > self.lastData:
                     self.lastData = seqNum
-                self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
+                if self.lastTime == 0:
+                    wait = self.RTP_SOFT_TIMEOUT/100.
+                self.lastTime = time.time()
+                self.handle_frame(payloadType, marker, seqNum, timeStamp, frame, wait)
             except:
                 if self.playEvent.isSet():
                     break
@@ -330,6 +343,10 @@ class Connection:
             #     continue
         self.numData += 1
         return packet
+
+    def handle_frame(self, payloadType, marker, seqNum, timeStamp, frame, wait):
+        time.sleep(wait)
+        self.session.process_frame(payloadType, marker, seqNum, timeStamp, frame)
 
     def calculate_frame_rate(self):
         time_range = self.timeStamps[self.lastData] / 1000
