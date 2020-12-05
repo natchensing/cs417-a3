@@ -243,7 +243,7 @@ class Connection:
         self.send_request(self.TEARDOWN)
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
-
+        self.playEvent.set()
         if not buf:
             print("nothing received")
             return
@@ -266,8 +266,7 @@ class Connection:
         '''
 
         # TODO
-        # self.socket.shutdown(socket.SHUT_RDWR)
-        self.close()
+        self.socket.close()
 
     def check_rtsp_head(self, reply):
         '''Helper function to check if the rtsp header indicates successful transmisson'''
@@ -304,6 +303,7 @@ class Connection:
 
     def recv_rtp_packet(self):
         packet = bytes()
+        # packet = self.data_sock.recv(self.BUFFER_LENGTH)
         while True:
             # try:
             packet += self.data_sock.recv(self.BUFFER_LENGTH)
