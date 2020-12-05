@@ -166,6 +166,7 @@ class Connection:
             print("transmission failed")
             print(reply)
             return
+        # check if we are in the correct session 
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
             self.sessionNum = session_match.group(1)
@@ -249,6 +250,7 @@ class Connection:
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
         self.playEvent.set()
+        '''These prints are for showing stats'''
         # print("PACKETS RECEIVED: " + str(self.numData))
         # print("TIME STAMPS: " + str(self.timeStamps))
         # print("SEQUENCE LIST: " + str(self.seqList[-1]))
@@ -273,6 +275,11 @@ class Connection:
         self.numData = 0
         self.numOutOrder = 0
         self.lastData = 0
+        self.seqList = []
+        self.dataBuffer = {}
+        self.lastTime = 0
+        self.t = None
+        self.timeStamps = {}
 
     def close(self):
         '''Closes the connection with the RTSP server. This method should also
@@ -293,6 +300,7 @@ class Connection:
         return False
 
     def process_data(self):
+        '''This function will receive data frames from server and process it'''
         self.data_sock.settimeout(self.RTP_SOFT_TIMEOUT / 1000.)
         while True:
             if self.state != self.PLAYING:
@@ -312,13 +320,13 @@ class Connection:
                 self.dataBuffer[seqNum] = packet[12:]
                 frame= packet[12:]
                 wait = 0
-                if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1):
+                if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1): # check if the order is correct
                     self.numOutOrder += 1
-                    if seqNum in self.timeStamps:
+                    if seqNum in self.timeStamps: # drop duplicated data
                         continue
-                    if (self.seqList[-1] + 1) in self.timeStamps:
+                    if (self.seqList[-1] + 1) in self.timeStamps: # check if we received the right ordered data
                         frame = self.dataBuffer[self.seqList[-1] + 1]
-                    else:
+                    else:                                              # wait for a certain period based on lagging
                         timeDiff = time.time() - self.lastTime
                         wait = timeDiff * 0.002 * abs(timeStamp - self.timeStamps[self.seqList[-1]])
                 self.seqList.append(seqNum)
@@ -326,7 +334,7 @@ class Connection:
                 if seqNum > self.lastData:
                     self.lastData = seqNum
                 if self.lastTime == 0:
-                    wait = self.RTP_SOFT_TIMEOUT/100.
+                    wait = self.RTP_SOFT_TIMEOUT/100. # set initial waiting period to 50 ms
                 self.lastTime = time.time()
                 self.handle_frame(payloadType, marker, seqNum, timeStamp, frame, wait)
             except:
@@ -334,6 +342,7 @@ class Connection:
                     break
 
     def recv_rtp_packet(self):
+        '''Helper function to receive data'''
         packet = bytes()
         # packet = self.data_sock.recv(self.BUFFER_LENGTH)
         while True:
@@ -347,9 +356,12 @@ class Connection:
         return packet
 
     def handle_frame(self, payloadType, marker, seqNum, timeStamp, frame, wait):
+        '''helper function for waiting before sending frames to play
+            I know we need a seperate thread for better performance, don't have the time to implement it'''
         time.sleep(wait)
         self.session.process_frame(payloadType, marker, seqNum, timeStamp, frame)
 
+    '''Functions to show stats'''
     def calculate_frame_rate(self):
         time_range = self.timeStamps[self.lastData] / 1000
         return self.numData / time_range
