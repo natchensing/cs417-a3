@@ -248,13 +248,13 @@ class Connection:
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
         self.playEvent.set()
-        print(self.numData)
-        print(self.timeStamps)
-        print(self.seqList[-1])
-        print(self.calculate_frame_rate())
-        print(self.calculate_loss_rate())
-        print(self.calculate_out_of_order_rate())
-        print(self.numOutOrder)
+        print("PACKETS RECEIVED: " + str(self.numData))
+        # print("TIME STAMPS: " + str(self.timeStamps))
+        print("SEQUENCE LIST: " + str(self.seqList[-1]))
+        print("FRAME RATE: " + str(self.calculate_frame_rate()))
+        print("LOSS RATE: " + str(self.calculate_loss_rate()))
+        print("OUT OF ORDER RATE: " + str(self.calculate_out_of_order_rate()))
+        print("OUT OF ORDER PACKETS: " + str(self.numOutOrder))
         if not buf:
             print("nothing received")
             return
@@ -270,6 +270,8 @@ class Connection:
                 self.stop_rtp_timer()
         self.state = self.INIT
         self.numData = 0
+        self.numOutOrder = 0
+        self.lastData = 0
 
     def close(self):
         '''Closes the connection with the RTSP server. This method should also
