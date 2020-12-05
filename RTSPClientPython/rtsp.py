@@ -60,6 +60,8 @@ class Connection:
         self.portNum = int(address[1])
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.data_sock = None
+        self.timeStamps = {}
+        self.dataBuffer = {}
         # CONNECT TO SERVER
         try:
             self.socket.connect((self.address, self.portNum))
@@ -177,7 +179,7 @@ class Connection:
             return
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
-            sessionNum = session_match(1)
+            sessionNum = session_match.group(1)
             if sessionNum == self.sessionNum:
                 self.start_rtp_timer()
         self.state = self.PLAYING
@@ -206,7 +208,7 @@ class Connection:
             return
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
-            sessionNum = session_match(1)
+            sessionNum = session_match.group(1)
             if sessionNum == self.sessionNum:
                 self.stop_rtp_timer()
         self.state = self.READY
@@ -240,7 +242,7 @@ class Connection:
             return
         session_match = re.search(self.SESSION_PATTERN, reply)
         if session_match:
-            sessionNum = session_match(1)
+            sessionNum = session_match.group(1)
             if sessionNum == self.sessionNum:
                 self.stop_rtp_timer()
         self.state = self.INIT
@@ -263,3 +265,18 @@ class Connection:
         if resp_match.group(1) and resp_match.group(2):
             return resp_match.group(1) == "200" and resp_match.group(2) == "OK"
         return False
+
+    def process_data(self):
+        while True:
+            try:
+                packet = self.data_sock.recv(self.BUFFER_LENGTH)
+                marker = packet[1] >> 7
+                payloadType = (packet[1] << 1) >> 1
+                print(payloadType)
+                seqNum = packet[2] * 256 + packet[3]
+                timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
+                self.timeStamps[seqNum] = timeStamp
+                self.dataBuffer[seqNum] = packet[12:]
+                self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
+            except socket.timeout:
+                pass
