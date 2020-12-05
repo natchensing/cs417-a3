@@ -63,9 +63,13 @@ class Connection:
         self.portNum = int(address[1])
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.data_sock = None
+        self.seqList = []
         self.timeStamps = {}
         self.dataBuffer = {}
         self.t = None
+        self.numData = 0
+        self.lastData = 0
+        self.numOutOrder = 0
         # CONNECT TO SERVER
         try:
             self.socket.connect((self.address, self.portNum))
@@ -244,6 +248,12 @@ class Connection:
 
         buf = self.socket.recv(self.BUFFER_LENGTH)
         self.playEvent.set()
+        print(self.numData)
+        print(self.timeStamps)
+        print(self.seqList[-1])
+        print(self.calculate_frame_rate())
+        print(self.calculate_loss_rate())
+        print(self.calculate_out_of_order_rate())
         if not buf:
             print("nothing received")
             return
@@ -258,6 +268,7 @@ class Connection:
             if sessionNum == self.sessionNum:
                 self.stop_rtp_timer()
         self.state = self.INIT
+        self.numData = 0
 
     def close(self):
         '''Closes the connection with the RTSP server. This method should also
@@ -291,11 +302,16 @@ class Connection:
                 payloadType = (packet[1] << 1) >> 1
                 #print(payloadType)
                 seqNum = packet[2] * 256 + packet[3]
+                if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1):
+                    self.numOutOrder += 1
+                self.seqList.append(seqNum)
                 timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
                 #print(seqNum)
                 #print(timeStamp)
                 self.timeStamps[seqNum] = timeStamp
                 self.dataBuffer[seqNum] = packet[12:]
+                if timeStamp > self.lastData:
+                    self.lastData = seqNum
                 self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
             except:
                 if self.playEvent.isSet():
@@ -311,4 +327,17 @@ class Connection:
                 break
             # except socket.timeout:
             #     continue
+        self.numData += 1
         return packet
+
+    def calculate_frame_rate(self):
+        time_range = self.timeStamps[self.lastData] / 1000
+        return self.numData / time_range
+
+    def calculate_loss_rate(self):
+        time_range = self.timeStamps[self.lastData] / 1000
+        return (self.lastData - self.numData) / time_range
+
+    def calculate_out_of_order_rate(self):
+        time_range = self.timeStamps[self.lastData] / 1000
+        return self.numOutOrder / time_range
