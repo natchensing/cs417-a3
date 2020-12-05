@@ -2,6 +2,7 @@ import io, socket
 import random
 import re
 from threading import Thread
+from time import sleep
 import _thread
 
 class RTSPException(Exception):
@@ -45,6 +46,7 @@ class Connection:
     TEARDOWN = 3
     SESSION_PATTERN = r".*Session: (\d+)"
     RTSP_PATTERN = r"RTSP/1.0 (\d+) ([a-zA-Z]+)"
+    RTP_SOFT_TIMEOUT = 5
 
     def __init__(self, session, address):
         '''Establishes a new connection with an RTSP server. No message is
@@ -62,6 +64,7 @@ class Connection:
         self.data_sock = None
         self.timeStamps = {}
         self.dataBuffer = {}
+        self.t = None
         # CONNECT TO SERVER
         try:
             self.socket.connect((self.address, self.portNum))
@@ -107,11 +110,14 @@ class Connection:
         '''
 
         # TODO
+        self.t = Thread(target = self.process_data)
+        self.t.start()
 
     def stop_rtp_timer(self):
         '''Stops the thread that reads RTP packets'''
 
         # TODO
+        self.t.join()
 
     def setup(self, filename):
         '''Sends a SETUP request to the server. This method is responsible for
@@ -267,16 +273,32 @@ class Connection:
         return False
 
     def process_data(self):
+        self.data_sock.settimeout(self.RTP_SOFT_TIMEOUT / 1000.)
+        while True:
+            if self.state != self.PLAYING:
+                sleep(self.RTP_SOFT_TIMEOUT/1000.)  # diminish cpu hogging
+                continue
+            packet = self.recv_rtp_packet()
+            #print(len(packet))
+            marker = packet[1] >> 7
+            #print(marker)
+            payloadType = (packet[1] << 1) >> 1
+            #print(payloadType)
+            seqNum = packet[2] * 256 + packet[3]
+            timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
+            #print(seqNum)
+            #print(timeStamp)
+            self.timeStamps[seqNum] = timeStamp
+            self.dataBuffer[seqNum] = packet[12:]
+            self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
+
+    def recv_rtp_packet(self):
+        packet = bytes()
         while True:
             try:
-                packet = self.data_sock.recv(self.BUFFER_LENGTH)
-                marker = packet[1] >> 7
-                payloadType = (packet[1] << 1) >> 1
-                print(payloadType)
-                seqNum = packet[2] * 256 + packet[3]
-                timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
-                self.timeStamps[seqNum] = timeStamp
-                self.dataBuffer[seqNum] = packet[12:]
-                self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
+                packet += self.data_sock.recv(self.BUFFER_LENGTH)
+                if packet.endswith(b'\xff\xd9'):
+                    break
             except socket.timeout:
-                pass
+                continue
+        return packet
