@@ -254,6 +254,7 @@ class Connection:
         print(self.calculate_frame_rate())
         print(self.calculate_loss_rate())
         print(self.calculate_out_of_order_rate())
+        print(self.numOutOrder)
         if not buf:
             print("nothing received")
             return
@@ -304,13 +305,13 @@ class Connection:
                 seqNum = packet[2] * 256 + packet[3]
                 if self.seqList != [] and int(seqNum) != (self.seqList[-1] + 1):
                     self.numOutOrder += 1
-                self.seqList.append(seqNum)
                 timeStamp = packet[4] * 16777216 + packet[5] * 65536 + packet[6] *256 + packet[7]
                 #print(seqNum)
                 #print(timeStamp)
                 self.timeStamps[seqNum] = timeStamp
                 self.dataBuffer[seqNum] = packet[12:]
-                if timeStamp > self.lastData:
+                self.seqList.append(seqNum)
+                if seqNum > self.lastData:
                     self.lastData = seqNum
                 self.session.process_frame(payloadType, marker, seqNum, timeStamp, packet[12:])
             except:
@@ -336,7 +337,7 @@ class Connection:
 
     def calculate_loss_rate(self):
         time_range = self.timeStamps[self.lastData] / 1000
-        return (self.lastData - self.numData) / time_range
+        return (self.lastData + 1 - self.numData) / time_range
 
     def calculate_out_of_order_rate(self):
         time_range = self.timeStamps[self.lastData] / 1000
